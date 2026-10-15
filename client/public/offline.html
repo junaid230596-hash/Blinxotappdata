@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#4f46e5" />
+  <title>You're offline · Blinxot</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 1.5rem; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #111827; text-align: center; }
+    @media (prefers-color-scheme: dark) { body { background: #0e1118; color: #eef0f6; } }
+    main { max-width: 26rem; }
+    img { width: 72px; height: 72px; border-radius: 16px; }
+    h1 { font-size: 1.4rem; margin: 1rem 0 .5rem; }
+    button { min-height: 44px; padding: .6rem 1.2rem; border: 0; border-radius: 10px; background: #4f46e5; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icon-192.png" alt="Blinxot" width="72" height="72" />
+    <h1>You're offline</h1>
+    <p>Blinxot needs a connection to show your latest business data. Check your internet connection and try again.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>

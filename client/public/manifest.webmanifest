@@ -1,0 +1,26 @@
+{
+  "id": "/app",
+  "name": "Blinxot",
+  "short_name": "Blinxot",
+  "description": "Business and work management: inventory, orders, people, customers and jobs in one place.",
+  "start_url": "/app?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
+  "background_color": "#4f46e5",
+  "theme_color": "#4f46e5",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/app?source=shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Attendance", "url": "/app/attendance?source=shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Orders", "url": "/app/orders?source=shortcut", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}
