@@ -1,0 +1,25 @@
+# /etc/systemd/system/blinxot-api.service   then: sudo systemctl daemon-reload && sudo systemctl enable --now blinxot-api
+[Unit]
+Description=Blinxot API
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=blinxot
+Group=blinxot
+WorkingDirectory=/var/www/blinxot/server
+EnvironmentFile=/etc/blinxot/server.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/blinxot
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
