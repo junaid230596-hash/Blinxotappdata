@@ -62,6 +62,7 @@ export const NAV: NavGroup[] = [
   ] },
   { label: "Shopping", items: [
     { to: "/app/shop", label: "Shop", show: indiv },
+    { to: "/discover", label: "Businesses", show: indiv },
     { to: "/app/cart", label: "Cart", show: indiv },
     { to: "/app/my-orders", label: "My orders", show: indiv },
   ] },

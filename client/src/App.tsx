@@ -44,6 +44,12 @@ function Guard({ perm, children }: { perm?: string[]; children: ReactElement }) 
   if (perm && !biz.can(...perm)) return <Card><Empty title="You don't have access to this page">Ask a business admin if you need it.</Empty></Card>;
   return children;
 }
+/** Discovery and detail pages (businesses, products, profiles, jobs) look like the app when you are signed in (sidebar, top bar) and like the public site when you are not. */
+function AdaptiveLayout() {
+  const { user, loading } = useAuth();
+  if (loading) return <Spinner />;
+  return user ? <Shell /> : <PublicLayout />;
+}
 /** Shopping screens are for individual accounts (businesses buy through Purchasing). */
 function IndividualOnly({ children }: { children: ReactElement }) {
   const { user } = useAuth();
@@ -139,6 +145,9 @@ export default function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<PublicNotFound />} />
+        </Route>
+        <Route element={<AdaptiveLayout />}>
           <Route path="/discover" element={<Discover />} />
           <Route path="/products" element={<ProductDiscovery />} />
           <Route path="/products/:id" element={<ProductDetail />} />
@@ -146,7 +155,6 @@ export default function App() {
           <Route path="/p/:slug" element={<PersonProfile />} />
           <Route path="/jobs" element={<PublicJobs />} />
           <Route path="/jobs/:id" element={<PublicJobDetail />} />
-          <Route path="*" element={<PublicNotFound />} />
         </Route>
       </Routes>
     </Suspense>

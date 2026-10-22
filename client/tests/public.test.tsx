@@ -212,3 +212,36 @@ describe("login redirect after public browsing", () => {
     expect(await screen.findByRole("navigation", { name: "Main" })).toBeInTheDocument();      // the signed-in app shell
   });
 });
+
+describe("signed-in users keep the app around discovery pages", () => {
+  it("shows the app sidebar (no public header/footer) for a signed-in individual, and the public layout for visitors", async () => {
+    const b = await seedBusiness("Layout Co"); const buyer = await seedUser("individual", "Layla");
+    const p = (await b.owner.s.req("POST", `${b.base}/products`, { name: "Layout Lamp", sellingPrice: 100, openingStock: 3 })).product;
+    await pool.query("UPDATE products SET is_listed=true WHERE id=$1", [p.id]);
+    const slug = (await pool.query("SELECT slug FROM businesses WHERE id=$1", [b.biz.id])).rows[0].slug;
+
+    for (const path of [`/b/${slug}`, `/products/${p.id}`, "/discover", "/products", "/jobs"]) {
+      const inApp = renderApp(path, buyer.s);
+      expect(await screen.findByRole("complementary", { name: "Sidebar" }), path).toBeInTheDocument();
+      expect(screen.queryByRole("contentinfo"), path).toBeNull();                              // the public footer
+      expect(screen.queryByRole("link", { name: "Sign up free" }), path).toBeNull();           // the public header
+      expect(within(screen.getByRole("complementary", { name: "Sidebar" })).getAllByRole("link", { name: "My orders" }).length).toBeGreaterThan(0);
+      inApp.unmount();
+    }
+    const first = renderApp(`/b/${slug}`, buyer.s);
+    expect(await screen.findByRole("heading", { level: 1, name: "Layout Co" })).toBeInTheDocument();       // the business details are still all there
+    expect(await screen.findByRole("link", { name: "Layout Lamp" })).toBeInTheDocument(); first.unmount();
+
+    const guest = renderApp(`/b/${slug}`);
+    await screen.findByRole("heading", { level: 1, name: "Layout Co" });
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument(); expect(screen.queryByRole("complementary", { name: "Sidebar" })).toBeNull();
+    expect(screen.getAllByRole("link", { name: "Sign up free" }).length).toBeGreaterThan(0); guest.unmount();
+  });
+
+  it("keeps marketing pages on the public layout even when signed in", async () => {
+    const buyer = await seedUser("individual", "Marla");
+    renderApp("/pricing", buyer.s);
+    await screen.findByRole("heading", { level: 1, name: /pricing/i });
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument(); expect(screen.queryByRole("complementary", { name: "Sidebar" })).toBeNull();
+  });
+});
