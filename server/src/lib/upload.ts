@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
@@ -15,11 +14,5 @@ export const detectFileType = (b: Buffer) => SIGNATURES.find((s) => s.match(b)) 
 export const publicDir = path.resolve(config.UPLOAD_DIR);
 // Private files live outside the statically served directory and are only reachable through authorised endpoints.
 export const privateDir = path.resolve(config.UPLOAD_DIR, "..", `${path.basename(config.UPLOAD_DIR)}-private`);
-fs.mkdirSync(publicDir, { recursive: true });
-fs.mkdirSync(privateDir, { recursive: true });
-
-export async function saveFile(dir: string, buf: Buffer, ext: string): Promise<string> {
-  const name = `${crypto.randomUUID()}${ext}`;      // server-generated; the client's filename is ignored
-  await fs.promises.writeFile(path.join(dir, name), buf, { flag: "wx" });
-  return name;
-}
+// With cloud storage these folders are only read (files not yet migrated), so they are not created.
+if (config.STORAGE_DRIVER === "local") { fs.mkdirSync(publicDir, { recursive: true }); fs.mkdirSync(privateDir, { recursive: true }); }

@@ -18,7 +18,10 @@ Server variables live in `server/.env` (development) or `/etc/blinxot/server.env
 | `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` `SMTP_FROM` | for email | port `587` | Without `SMTP_HOST` a warning is logged and **no email is sent**: nobody can verify their email (required to create a business) or reset a password. Required for production. |
 | `SMTP_PASS` / `SMTP_SECURE` | no | – | `SMTP_PASS` is accepted as an alias of `SMTP_PASSWORD`. `SMTP_SECURE=true` forces SSL; by default only port 465 uses SSL (587 uses STARTTLS). |
 | `SMTP_CA_FILE` / `SMTP_TLS_INSECURE` | no | – | `SMTP_CA_FILE` = path to a PEM certificate authority to trust (private mail relay, or the root of an antivirus/proxy that re-signs traffic). `SMTP_TLS_INSECURE=true` skips certificate checks for local development only and is **ignored when `NODE_ENV=production`**. |
-| `UPLOAD_DIR` | no | `./uploads` | Public images. Private employee documents go to `<UPLOAD_DIR>-private` automatically. Both must be writable and backed up. |
+| `UPLOAD_DIR` | no | `./uploads` | Used with `STORAGE_DRIVER=local`: public images; private employee documents go to `<UPLOAD_DIR>-private`. Both must be writable and backed up. |
+| `STORAGE_DRIVER` | no | `local` | `local` or `s3` (any S3-compatible bucket). See `docs/STORAGE.md`. |
+| `S3_BUCKET` `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` | with `s3` | – | Required when `STORAGE_DRIVER=s3`; the app will not start without them. |
+| `S3_REGION` `S3_ENDPOINT` `S3_PREFIX` `S3_FORCE_PATH_STYLE` | no | `us-east-1` / – / – / auto | `S3_ENDPOINT` is needed for every provider except AWS. `S3_PREFIX` is an optional folder inside the bucket. |
 | `MAX_UPLOAD_MB` | no | `5` | |
 | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | first boot | – | Creates the first super admin if none exists (password ≥ 12 chars). **Remove both after the first start.** |
 

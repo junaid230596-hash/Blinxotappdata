@@ -23,9 +23,16 @@ const schema = z.object({
   SMTP_SECURE: z.enum(["true", "false"]).optional(),        // default: true only for port 465 (SSL); 587 uses STARTTLS
   SMTP_FROM: z.string().default("Blinxot <no-reply@blinxot.com>"),
   UPLOAD_DIR: z.string().default("./uploads"),
+  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),  // "s3" = any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, MinIO...)
+  S3_BUCKET: z.string().optional(), S3_REGION: z.string().default("us-east-1"), S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(), S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.enum(["true", "false"]).optional(), S3_PREFIX: z.string().regex(/^[A-Za-z0-9._\-\/]*$/).default(""),
   MAX_UPLOAD_MB: z.coerce.number().default(5),
   BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(12).optional(),
+}).superRefine((c, ctx) => {
+  if (c.STORAGE_DRIVER !== "s3") return;
+  for (const k of ["S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const) if (!c[k]) ctx.addIssue({ code: "custom", path: [k], message: `${k} is required when STORAGE_DRIVER=s3` });
 });
 
 const parsed = schema.safeParse(process.env);

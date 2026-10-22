@@ -19,7 +19,7 @@ import { reviewRouter } from "./modules/reviews/review.routes.js";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.routes.js";
 import { notificationRouter } from "./modules/notifications/notification.routes.js";
 import { seoRouter, siteRouter } from "./modules/seo/seo.routes.js";
-import { uploadDir, uploadRouter } from "./modules/uploads/upload.routes.js";
+import { uploadDir, uploadRouter, uploadServeRouter } from "./modules/uploads/upload.routes.js";
 
 export function createApp() {
   const app = express();
@@ -35,7 +35,8 @@ export function createApp() {
     res.json({ status: "ok", service: "blinxot-api" });
   });
 
-  app.use("/uploads", express.static(uploadDir, { setHeaders: (r) => { r.setHeader("X-Content-Type-Options", "nosniff"); r.setHeader("Content-Disposition", "inline"); } }));
+  if (config.STORAGE_DRIVER === "s3") app.use("/uploads", uploadServeRouter);        // bucket stays private; the API streams public files
+  else app.use("/uploads", express.static(uploadDir, { setHeaders: (r) => { r.setHeader("X-Content-Type-Options", "nosniff"); r.setHeader("Content-Disposition", "inline"); } }));
 
   app.use(seoRouter);                                         // /robots.txt and /sitemap.xml (no session, no maintenance gate)
 

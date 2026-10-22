@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pool, tx } from "../../db.js";
 import { AppError, badRequest, conflict, forbidden, notFound } from "../../lib/errors.js";
-import { detectFileType, privateDir, saveFile } from "../../lib/upload.js";
+import { detectFileType } from "../../lib/upload.js";
+import { openFile, removeFile, storeFile } from "../../lib/storage.js";
 import { buildSets } from "../../lib/sql.js";
 import { audit } from "../audit/audit.service.js";
 import { notify, notifyMembersWith } from "../notifications/notification.service.js";
@@ -183,7 +184,7 @@ export async function addDocument(businessId: string, employeeId: string, actorI
   const type = detectFileType(file.buffer);
   if (!type) throw badRequest("Unsupported file type. Allowed: PNG, JPEG, WebP, PDF");
   await assertWithin(businessId, "storageMb", file.size / 1048576);
-  const key = await saveFile(privateDir, file.buffer, type.ext);
+  const key = await storeFile("private", file.buffer, type.ext);
   try {
     const id = await tx(async (c) => {
       const sf = await recordFile(businessId, actorId, key, file.size, true, c);
@@ -195,7 +196,7 @@ export async function addDocument(businessId: string, employeeId: string, actorI
       return rows[0].id as string;
     });
     return getDocument(businessId, employeeId, id);
-  } catch (e) { await fs.promises.rm(path.join(privateDir, key), { force: true }); throw e; }   // no orphaned files if the insert fails
+  } catch (e) { await removeFile("private", key); throw e; }   // no orphaned files if the insert fails
 }
 export async function getDocument(businessId: string, employeeId: string, id: string) {
   const { rows } = await pool.query(`${DSEL} WHERE d.id=$1 AND d.employee_id=$2 AND d.business_id=$3`, [id, employeeId, businessId]);
@@ -219,7 +220,7 @@ export async function deleteDocument(businessId: string, employeeId: string, id:
   const { rows } = await pool.query("DELETE FROM employee_documents WHERE id=$1 AND employee_id=$2 AND business_id=$3 RETURNING file_key, stored_file_id", [id, employeeId, businessId]);
   if (!rows[0]) throw notFound();
   if (rows[0].stored_file_id) await pool.query("DELETE FROM stored_files WHERE id=$1", [rows[0].stored_file_id]);
-  if (KEY_RE.test(rows[0].file_key)) await fs.promises.rm(path.join(privateDir, rows[0].file_key), { force: true });
+  await removeFile("private", rows[0].file_key);
   await audit({ actorId, businessId, action: "document.delete", entity: "employee_document", entityId: id, ip });
 }
 export async function expiringDocuments(businessId: string, days: number) {
@@ -234,7 +235,7 @@ export async function openDocument(businessId: string, employeeId: string, id: s
   const { rows } = await pool.query(`${DSEL} WHERE d.id=$1 AND d.employee_id=$2 AND d.business_id=$3 ${onlyVisible ? "AND d.visible_to_employee" : ""}`, [id, employeeId, businessId]);
   const d = rows[0];
   if (!d || !KEY_RE.test(d.file_key)) throw notFound();
-  const full = path.join(privateDir, d.file_key);
-  if (!fs.existsSync(full)) throw new AppError(410, "FILE_MISSING", "This file is no longer available");
-  return { path: full, mime: d.mime as string, filename: `${safeName(d.name)}${path.extname(d.file_key)}` };
+  const file = await openFile("private", d.file_key).catch(() => { throw new AppError(502, "STORAGE_UNAVAILABLE", "File storage is temporarily unavailable. Please try again."); });
+  if (!file) throw new AppError(410, "FILE_MISSING", "This file is no longer available");
+  return { file, mime: d.mime as string, filename: `${safeName(d.name)}${path.extname(d.file_key)}` };
 }

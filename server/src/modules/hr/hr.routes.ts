@@ -45,13 +45,14 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: con
 const category = z.enum(["contract", "id_proof", "certificate", "payslip", "other"]);
 const eid = (r: any) => rid(r, "employeeId");
 
-function sendPrivateFile(res: Response, f: { path: string; mime: string; filename: string }) {
+function sendPrivateFile(res: Response, f: { file: { stream: NodeJS.ReadableStream; size?: number }; mime: string; filename: string }) {
   res.setHeader("Content-Type", f.mime);
   res.setHeader("Content-Disposition", `attachment; filename="${f.filename}"`);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Cache-Control", "private, no-store");
-  // The path is server-built (fixed directory + validated UUID key), so serving from a dot-directory is safe.
-  res.sendFile(f.path, { dotfiles: "allow" }, (err) => { if (err && !res.headersSent) res.status(404).json({ error: { code: "NOT_FOUND", message: "File not found" } }); });
+  if (f.file.size != null) res.setHeader("Content-Length", String(f.file.size));
+  f.file.stream.on("error", () => res.destroy());
+  f.file.stream.pipe(res);
 }
 
 export const documentRouter = Router({ mergeParams: true });

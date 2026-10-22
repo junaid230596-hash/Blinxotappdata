@@ -1,6 +1,6 @@
 # Backup and recovery
 
-What to protect: (1) the PostgreSQL database, (2) `UPLOAD_DIR` (public images) and (3) `<UPLOAD_DIR>-private` (employee documents). `deploy/backup.sh` captures all three.
+With `STORAGE_DRIVER=s3` the files are in the bucket, not on the server: see `docs/STORAGE.md` for how to protect them (versioning or a second copy). What to protect: (1) the PostgreSQL database, (2) `UPLOAD_DIR` (public images) and (3) `<UPLOAD_DIR>-private` (employee documents). `deploy/backup.sh` captures all three.
 
 ## Backup
 ```bash

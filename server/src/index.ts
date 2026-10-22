@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { createApp } from "./app.js";
 import { config, isProd } from "./config.js";
 import { checkSmtpOnBoot } from "./lib/email.js";
+import { checkStorageOnBoot } from "./lib/storage.js";
 import { pool } from "./db.js";
 import { logger } from "./logger.js";
 import { migrate } from "./migrate.js";
@@ -22,7 +23,9 @@ async function bootstrapAdmin() {
 if (isProd && !config.SMTP_HOST) logger.warn("SMTP_HOST is not set: verification, password-reset and invitation emails will NOT be sent, so new users cannot verify their email or create a business");
 if (isProd && config.APP_URL.startsWith("http://")) logger.warn("APP_URL is not https: auth cookies are Secure in production and email links will be wrong");
 
-void checkSmtpOnBoot();          // logs "SMTP connection verified" or exactly why email will not work
+void checkSmtpOnBoot();
+void checkStorageOnBoot();       // logs "file storage verified" or exactly why uploads will fail
+          // logs "SMTP connection verified" or exactly why email will not work
 const applied = await migrate();
 if (applied.length) logger.info({ applied }, "migrations applied");
 await bootstrapAdmin();

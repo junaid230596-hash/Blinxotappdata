@@ -15,5 +15,6 @@
 | Two icons for the app | An old install from a previous manifest `id`/scope; uninstall it, keep only the current one. |
 | Sitemap shows wrong domain | Set `SITE_URL` on the server. |
 | Link previews show default text | Set `CLIENT_DIST` on the server and use the `/b/`, `/p/`, `/products/` proxy block from `deploy/nginx.conf`; also set `VITE_SITE_URL` at build time. |
+| Uploads fail or return 502 with cloud storage | Run `cd server && npm run storage:test`; it names the problem (key, bucket, region, permission, network). See `docs/STORAGE.md`. |
 | Uploaded images 404 behind nginx | `/uploads/` must proxy to the API; `UPLOAD_DIR` must be writable by the service user. |
 | `npm test` cannot connect | PostgreSQL not running or test databases missing. |

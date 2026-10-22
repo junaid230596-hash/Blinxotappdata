@@ -8,7 +8,7 @@
 | Authorisation | `requireAuth` / `requireBusinessAccess(permission)` on every business route; non-members get 404; tests cover cross-tenant access |
 | Input validation | zod on every body/query/param; parameterised SQL everywhere; `LIKE` input escaped |
 | XSS | React escaping; JSON-LD is serialised with `<` escaped; all rendered links pass `safeHref` (http/https only); the API also rejects non-http(s) website, social, ad and project URLs; strict CSP in `deploy/nginx.conf` |
-| Uploads | type detected by magic bytes (png, jpg, webp, pdf only), size-capped, server-generated names, `nosniff`; employee documents stored outside the web root and served only through authorised endpoints |
+| Uploads | type detected by magic bytes (png, jpg, webp, pdf only), size-capped, server-generated names, `nosniff`; employee documents stored privately (outside the web root, or in a private bucket) and served only through authorised endpoints; with cloud storage the bucket is never public and keys are limited to that bucket |
 | Rate limiting | auth, public discovery, search, AI tools, review creation, OTP attempts |
 | Headers | helmet on the API; HSTS, CSP, Referrer-Policy, Permissions-Policy in nginx |
 | Secrets | environment variables only; `.env` git-ignored; env validated at boot; bootstrap admin credentials meant to be removed after first boot |

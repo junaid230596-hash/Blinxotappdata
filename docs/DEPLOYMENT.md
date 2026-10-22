@@ -35,6 +35,8 @@ sudoedit /etc/blinxot/server.env
 ```
 Set at least: `NODE_ENV=production`, `DATABASE_URL`, `JWT_ACCESS_SECRET` (random, ≥32), `APP_URL=https://blinxot.com`, `SITE_URL=https://blinxot.com`, `CORS_ORIGINS=https://blinxot.com`, `UPLOAD_DIR=/var/lib/blinxot/uploads`, `CLIENT_DIST=/var/www/blinxot/client/dist`, the five `SMTP_*` values, and for the first boot only `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`.
 
+Using cloud storage instead of the server disk? Set `STORAGE_DRIVER=s3` and the `S3_*` values now and run `npm run storage:test` (see `docs/STORAGE.md`).
+
 ## 5. Services
 ```bash
 sudo cp deploy/blinxot-api.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now blinxot-api
