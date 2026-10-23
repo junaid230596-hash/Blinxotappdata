@@ -90,6 +90,52 @@ export async function diagnoseSmtp(s: SmtpSettings, opts: { alternatives?: Alt[]
   }
 }
 
+// ---- HTTP email providers (Brevo, Resend) --------------------------------------------------------------------------------
+// Many hosts (Render's free plan, DigitalOcean, Google Cloud...) block outgoing SMTP ports 25/465/587. These providers are called over
+// ordinary HTTPS (port 443), which is never blocked, so they work everywhere.
+export type Provider = "brevo" | "resend" | "smtp";
+export function emailProvider(): Provider | null {
+  if (config.EMAIL_PROVIDER === "brevo" && config.BREVO_API_KEY) return "brevo";
+  if (config.EMAIL_PROVIDER === "resend" && config.RESEND_API_KEY) return "resend";
+  if (config.EMAIL_PROVIDER === "smtp") return config.SMTP_HOST ? "smtp" : null;
+  if (config.BREVO_API_KEY) return "brevo";
+  if (config.RESEND_API_KEY) return "resend";
+  return config.SMTP_HOST ? "smtp" : null;
+}
+/** "Blinxot <me@example.com>" -> { name, email } */
+export function parseFrom(from: string) { const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(from); return m ? { name: m[1].trim() || undefined, email: m[2].trim() } : { name: undefined, email: from.trim() }; }
+
+async function callApi(url: string, init: RequestInit): Promise<{ status: number; body: string }> {
+  const r = await fetch(url, { ...init, signal: AbortSignal.timeout(15_000) });
+  return { status: r.status, body: (await r.text()).slice(0, 600) };
+}
+const apiHint = (p: Provider, status: number, body: string) =>
+  status === 401 || status === 403 && /api key|unauthor|invalid/i.test(body) ? `${p === "brevo" ? "BREVO_API_KEY" : "RESEND_API_KEY"} was rejected. Create a new API key in the ${p === "brevo" ? "Brevo (SMTP & API > API Keys)" : "Resend (API Keys)"} dashboard and paste it without spaces.`
+  : p === "brevo" && /sender|not valid|not verified/i.test(body) ? "Brevo only sends from a verified sender. Add and verify the From address under Brevo > Senders, Domains & Dedicated IPs > Senders, then set SMTP_FROM to exactly that address."
+  : p === "resend" && /verify|domain|testing emails/i.test(body) ? "Resend only sends from a verified domain (or from onboarding@resend.dev to your own account email while testing). Verify your domain in Resend > Domains and use an address on it in SMTP_FROM."
+  : status === 429 ? "Rate or daily sending limit reached for this account/plan." : status >= 500 ? "The email provider is having problems; try again shortly." : "See the response above.";
+
+export async function sendViaApi(p: "brevo" | "resend", mail: Mail & { headers?: Record<string, string> }): Promise<void> {
+  const from = parseFrom(config.SMTP_FROM); const headers = { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "OOF, AutoReply" };
+  const res = p === "brevo"
+    ? await callApi(`${config.BREVO_API_URL}/v3/smtp/email`, { method: "POST", headers: { "api-key": config.BREVO_API_KEY!, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ sender: { name: from.name, email: from.email }, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text, htmlContent: mail.html, replyTo: mail.replyTo ? { email: mail.replyTo } : undefined, headers }) })
+    : await callApi(`${config.RESEND_API_URL}/emails`, { method: "POST", headers: { authorization: `Bearer ${config.RESEND_API_KEY}`, "content-type": "application/json" },
+        body: JSON.stringify({ from: config.SMTP_FROM, to: [mail.to], subject: mail.subject, text: mail.text, html: mail.html, reply_to: mail.replyTo, headers }) });
+  if (res.status < 200 || res.status >= 300) throw Object.assign(new Error(`${p} responded ${res.status}: ${res.body}`), { code: `HTTP_${res.status}`, responseCode: res.status, hint: apiHint(p, res.status, res.body) });
+}
+
+/** Checks the API key without sending anything. */
+export async function diagnoseApiProvider(p: "brevo" | "resend"): Promise<{ ok: true } | { ok: false; code: string; message: string; hint: string }> {
+  try {
+    const r = p === "brevo" ? await callApi(`${config.BREVO_API_URL}/v3/account`, { headers: { "api-key": config.BREVO_API_KEY!, accept: "application/json" } })
+                            : await callApi(`${config.RESEND_API_URL}/domains`, { headers: { authorization: `Bearer ${config.RESEND_API_KEY}` } });
+    if (r.status === 401 || (r.status === 403 && !/restricted_api_key/i.test(r.body))) return { ok: false, code: `HTTP_${r.status}`, message: r.body, hint: apiHint(p, 401, r.body) };   // Resend "sending access" keys cannot list domains but are valid
+    if (r.status >= 400 && r.status !== 403) return { ok: false, code: `HTTP_${r.status}`, message: r.body, hint: apiHint(p, r.status, r.body) };
+    return { ok: true };
+  } catch (e) { return { ok: false, code: "NETWORK", message: (e as Error).message, hint: "Could not reach the email provider over HTTPS. Check this server's internet access." }; }
+}
+
 let transport: ReturnType<typeof buildTransport> | null | undefined;
 const getTransport = () => (transport === undefined ? (transport = smtpSettings() ? buildTransport(smtpSettings()!) : null) : transport);
 
@@ -106,8 +152,19 @@ export function senderWarnings(s: SmtpSettings): string[] {
 
 /** Logs whether email can actually be sent. Called once at startup so a bad setting is obvious immediately, not when the first user never gets a code. */
 export async function checkSmtpOnBoot() {
+  const p = emailProvider();
+  if (!p) return;
+  if (p !== "smtp") {
+    const from = parseFrom(config.SMTP_FROM);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(from.email)) logger.error(`SMTP_FROM "${config.SMTP_FROM}" has no valid email address.`);
+    const d = await diagnoseApiProvider(p);
+    if (d.ok) logger.info({ provider: p, from: from.email }, `${p} email API verified: email is working (sending as ${from.email}; this address must be verified with ${p})`);
+    else logger.error({ provider: p, code: d.code, reason: d.message }, `${p} email is NOT working: ${d.hint}`);
+    return;
+  }
   const s = smtpSettings();
   if (!s) return;
+  if (isProd && /onrender\.com|RENDER/i.test(`${process.env.RENDER ?? ""}${process.env.RENDER_EXTERNAL_URL ?? ""}`)) logger.warn("Running on Render: its free plan blocks outgoing SMTP (ports 25, 465, 587). If email fails, set BREVO_API_KEY or RESEND_API_KEY instead (see docs/DEPLOY-VERCEL-RENDER.md).");
   if (config.SMTP_TLS_INSECURE === "true" && isProd) logger.error("SMTP_TLS_INSECURE is ignored in production: certificates are always verified. Use SMTP_CA_FILE to trust a private certificate authority.");
   if (s.insecure) logger.warn("SMTP_TLS_INSECURE=true: email certificate checks are OFF (development only).");
   for (const w of senderWarnings(s)) logger.warn(w);
@@ -115,20 +172,20 @@ export async function checkSmtpOnBoot() {
   if (d.ok) logger.info({ host: s.host, port: s.port, user: s.user }, "SMTP connection verified: email is working");
   else logger.error({ host: s.host, port: s.port, code: d.code, reason: d.message }, `SMTP is NOT working: ${d.hint}`);
 }
-
 export async function sendMail(mail: Mail): Promise<void> {
-  const t = getTransport();
-  if (!t) {
+  const p = emailProvider();
+  if (!p) {
     if (isTest) outbox.push(mail);
-    else logger.warn({ to: mail.to, subject: mail.subject }, "SMTP not configured; email not sent");
+    else logger.warn({ to: mail.to, subject: mail.subject }, "No email provider configured (set BREVO_API_KEY, RESEND_API_KEY or SMTP_HOST); email not sent");
     return;
   }
   try {
-    await t.sendMail({ from: config.SMTP_FROM, headers: { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "OOF, AutoReply" }, ...mail });
+    if (p === "smtp") await getTransport()!.sendMail({ from: config.SMTP_FROM, headers: { "Auto-Submitted": "auto-generated", "X-Auto-Response-Suppress": "OOF, AutoReply" }, ...mail });
+    else await sendViaApi(p, mail);
   } catch (e) {
     // Never fail the request because email failed; log for operators.
-    const err = e as { message: string; code?: string; responseCode?: number };
-    logger.error({ err: err.message, code: err.code, responseCode: err.responseCode, to: mail.to, subject: mail.subject }, "email send failed (run `npm run smtp:test -- you@example.com` to diagnose)");
+    const err = e as { message: string; code?: string; responseCode?: number; hint?: string };
+    logger.error({ provider: p, err: err.message, code: err.code, responseCode: err.responseCode, hint: err.hint, to: mail.to, subject: mail.subject }, "email send failed (run `npm run email:test -- you@example.com` to diagnose)");
   }
 }
 

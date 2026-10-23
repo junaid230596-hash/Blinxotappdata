@@ -24,7 +24,7 @@ import { uploadDir, uploadRouter, uploadServeRouter } from "./modules/uploads/up
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set("trust proxy", config.TRUST_PROXY);          // how many proxies sit in front: needed for correct client IPs (rate limits, audit log)
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors({ origin: config.CORS_ORIGINS.split(",").map((s) => s.trim()), credentials: true }));
   app.use(express.json({ limit: "100kb" }));

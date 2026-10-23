@@ -20,6 +20,10 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),                        // accepted as an alias of SMTP_PASSWORD
   SMTP_CA_FILE: z.string().optional(),                     // PEM file of an extra certificate authority to trust (private relay, antivirus/proxy root)
   SMTP_TLS_INSECURE: z.enum(["true", "false"]).optional(),  // development only: skip certificate checks. Ignored in production.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),   // proxies in front of the app: Render only = 1; Vercel rewrite -> Render = 2; nginx only = 1
+  EMAIL_PROVIDER: z.enum(["smtp", "brevo", "resend"]).optional(),  // default: brevo if BREVO_API_KEY is set, else resend if RESEND_API_KEY is set, else smtp if SMTP_HOST is set
+  BREVO_API_KEY: z.string().optional(), RESEND_API_KEY: z.string().optional(),
+  BREVO_API_URL: z.string().url().default("https://api.brevo.com"), RESEND_API_URL: z.string().url().default("https://api.resend.com"),
   SMTP_SECURE: z.enum(["true", "false"]).optional(),        // default: true only for port 465 (SSL); 587 uses STARTTLS
   SMTP_FROM: z.string().default("Blinxot <no-reply@blinxot.com>"),
   UPLOAD_DIR: z.string().default("./uploads"),
