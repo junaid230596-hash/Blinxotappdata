@@ -5,8 +5,8 @@ Status as of this build. "Verified" means exercised by an automated test or comm
 ## Verified
 | Area | Evidence |
 |---|---|
-| API + integration | 25 files, **215 tests** passing (`cd server && npm test`) |
-| Client + full-app flows | 10 files, **102 tests** passing against the real API/DB (`cd client && npm test`) |
+| API + integration | 26 files, **222 tests** passing (`cd server && npm test`) |
+| Client + full-app flows | 11 files, **107 tests** passing against the real API/DB (`cd client && npm test`) |
 | Type checks, production builds | `tsc --noEmit` clean in both; `vite build` and `tsc` builds succeed; compiled API boots in production mode |
 | Dependencies | `npm audit --omit=dev`: 0 vulnerabilities (server and client) |
 | Auth, RBAC, tenancy | register/verify/login/logout/reset, lockout, refresh rotation, cross-tenant 404s |
@@ -15,6 +15,7 @@ Status as of this build. "Verified" means exercised by an automated test or comm
 | CRM, tasks, jobs, reviews, ads, notifications, reports, admin, plans | per-module test files |
 | Link previews, contact form | per-page meta served by the API (escaped, 404 noindex for private/missing), contact form validation, header-injection and honeypot protection |
 | GST invoicing | GSTIN format + check-character validation, HSN/SAC, place of supply, CGST+SGST vs IGST (odd paisa preserved), HSN summary, amount in words (lakh/crore), unregistered-seller layout, credit notes equal to refunds, financial-year numbering across the 1 April IST boundary, snapshot immutability, UI layouts (axe-clean) |
+| Split deployment (Vercel + Render) | `vercel.json` routes the API through the site domain (cookies work), login verifies the session was kept and explains if not, Brevo/Resend HTTP email (request shape, errors, key never leaked, provider choice), `TRUST_PROXY` |
 | Cloud file storage | S3-compatible driver exercised against a local S3 server with the real AWS SDK: public/private prefixes, API serving with safe headers, private documents authorised, bad keys refused, local-disk fallback, outage returns 502 with no leftovers, test and migrate commands, config validation |
 | Automatic numbering + invoices | trigger-assigned codes (sequential, per business, 20 concurrent creates unique and gapless), hand-typed SKU collisions skipped, backfill of existing rows verified on a populated database, invoice issue/void/never-reused numbers, frozen snapshot, tenant and buyer isolation |
 | Individual shopping | listed-only products, server-side pricing, stock check, one-seller cart, OTP-confirmed delivery, buyer cancel while pending, privacy between buyers, review only after delivery |
@@ -34,6 +35,7 @@ Status as of this build. "Verified" means exercised by an automated test or comm
 6. Set the support email in **Admin → Settings**; submit the sitemap to search consoles.
 
 ## Known limitations
+- Brevo and Resend were tested against a local fake of their APIs (request shape, errors), not live accounts; the Vercel rewrite was verified by configuration tests, not on a live Vercel deployment. Follow the checks in `docs/DEPLOY-VERCEL-RENDER.md` after deploying.
 - Cloud storage was verified against an S3-compatible emulator, not against live AWS/R2/B2/Spaces accounts: run `npm run storage:test` once with your real bucket before launch. Files are served through the API (not direct bucket URLs), so very high image traffic should sit behind a CDN or nginx cache.
 - GST: no e-invoicing (IRN / QR code), e-way bill, reverse charge, composition scheme, cess, TCS/TDS, GSTR report exports, or multi-state GSTINs per business. Invoices issued before GST support keep their original number format and simple layout. Confirm the invoice layout and rules with your accountant before relying on it for filing.
 - **Page-specific meta needs `CLIENT_DIST` + the nginx routes** (both in the deployment guide). Pages other than business/product/person profiles share the site-wide preview; those pages' own tags are set by JavaScript.

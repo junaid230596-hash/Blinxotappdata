@@ -4,6 +4,7 @@
 |---|---|
 | API exits at start with "Invalid environment configuration" | A required variable is missing or invalid (`DATABASE_URL`, `JWT_ACCESS_SECRET` ≥ 32 chars). |
 | `permission denied to create extension` during migration | Create `citext`, `pgcrypto`, `btree_gist` once as a superuser (see INSTALLATION.md). |
+| Frontend on Vercel and API on Render: login returns to the login page, email and uploads fail | See `docs/DEPLOY-VERCEL-RENDER.md`: proxy `/api` through Vercel (`client/vercel.json`), use an email API (Render blocks SMTP) and cloud storage (Render's disk is temporary). |
 | Users never receive verification / reset emails | Run `cd server && npm run smtp:test -- you@example.com`; it names the problem (placeholder host, wrong or missing password, wrong port, blocked connection). The boot log also says "SMTP connection verified" or why not. The variable is `SMTP_PASSWORD` (`SMTP_PASS` also works). Users cannot create a business until their email is verified. |
 | "Greeting never received" | The connection opened but the server said nothing: port and SSL do not match (465 needs SSL, 587 needs `SMTP_SECURE=false`), an antivirus mail shield is holding the connection, or the network blocks mail. `npm run smtp:test` tests the other standard combinations and tells you which one works. |
 | Email lands in spam | See `docs/EMAIL_DELIVERABILITY.md`. |
