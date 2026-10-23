@@ -20,7 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthState>(() => ({
     user, loading, refreshUser,
-    async login(email, password) { const r = await post<{ user: User }>("/api/auth/login", { email, password }); setUser(r.user); return r.user; },
+    async login(email, password) {
+      await post<{ user: User }>("/api/auth/login", { email, password });
+      // Confirm the browser actually kept the session cookie before going to the dashboard; otherwise the next request would bounce back to the login page.
+      try { const me = await get<{ user: User }>("/api/auth/me"); setUser(me.user); return me.user; }
+      catch (e) {
+        if (e instanceof ApiError && e.status === 401) {
+          console.error("Login succeeded but the session cookie was not sent back. If the API is on a different domain than this site, route /api through this site's own domain (see docs/DEPLOY-VERCEL-RENDER.md), and make sure cookies are allowed.");
+          throw new Error("You signed in, but your session could not be kept. Please make sure cookies are allowed for this site and try again. If it keeps happening, contact support.");
+        }
+        throw e;
+      }
+    },
     async register(i) { await post("/api/auth/register", i); },
     async logout() { try { await post("/api/auth/logout"); } finally { setUser(null); localStorage.removeItem("bx_biz"); } },
   }), [user, loading, refreshUser]);
